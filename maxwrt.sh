@@ -1,31 +1,32 @@
 #!/bin/sh
 set -e
 
-# Sistem paketlerini güncelle
+# 1. Sistem paketlerini güncelle ve bağımlılıkları kur
 opkg update
+opkg remove dnsmasq || true
+opkg install dnsmasq-full kmod-nft-tproxy kmod-nft-socket unzip ca-bundle
 
-# Temel dnsmasq paketini tam sürümle değiştir
-opkg remove dnsmasq
-opkg install dnsmasq-full
-
-# Gerekli kernel modüllerini yükle
-opkg install kmod-nft-tproxy kmod-nft-socket
-
-# Passwall public anahtarını indir ve sisteme tanıt
-wget -O passwall.pub https://master.dl.sourceforge.net/project/openwrt-passwall-build/passwall.pub
-opkg-key add passwall.pub
-rm -f passwall.pub
-
-# OpenWrt sürüm ve mimari değişkenlerini al
+# 2. Mimariyi çek
 . /etc/openwrt_release
-RELEASE="${DISTRIB_RELEASE%.*}"
 ARCH="${DISTRIB_ARCH}"
+VERSION="26.5.1-1"
 
-# Passwall feed'lerini yapılandırmaya ekle
-for feed in passwall_packages passwall2; do
-    echo "src/gz $feed https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-${RELEASE}/${ARCH}/$feed" >> /etc/opkg/customfeeds.conf
-done
+# 3. Geçici çalışma alanı oluştur
+mkdir -p /tmp/passwall
+cd /tmp/passwall
 
-# Listeleri tekrar güncelle ve hedef paketleri kur
-opkg update
-opkg install luci-app-passwall2 v2ray-geosite-ir
+
+
+URL="https://github.com/Openwrt-Passwall/openwrt-passwall2/releases/download/26.5.1-1/passwall_packages_ipk_x86_64.zip"
+
+
+# 4. Paketleri indir ve aç
+wget -O passwall.zip "$URL"
+unzip -q passwall.zip
+
+# 5. Tüm ipk dosyalarını kur
+opkg install *.ipk
+
+# 6. Temizlik (Güvenlik ve hafıza için zorunlu)
+cd /
+rm -rf /tmp/passwall
